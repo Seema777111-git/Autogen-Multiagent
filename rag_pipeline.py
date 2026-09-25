@@ -18,10 +18,10 @@ CHUNKS_FILE = INDEX_DIR / "chunks.txt"
 
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
-CHUNK_SIZE = 800
-CHUNK_OVERLAP = 100
+CHUNK_SIZE = 350
+CHUNK_OVERLAP = 50
 
-DEFAULT_TOP_K = 5
+DEFAULT_TOP_K = 2
 
 
 # ============================================================
@@ -138,40 +138,89 @@ def extract_text_from_pdf(pdf_path):
 # TEXT CHUNKING
 # ============================================================
 
+import re
+
+
+def _split_into_sentences(text):
+    """
+    Split text into sentences using simple punctuation-based
+    boundaries. Good enough for policy-document prose without
+    pulling in a full NLP dependency.
+    """
+
+    sentences = re.split(
+        r"(?<=[.!?])\s+",
+        text
+    )
+
+    return [
+        sentence.strip()
+        for sentence in sentences
+        if sentence.strip()
+    ]
+
+
 def create_chunks(
     text,
     chunk_size=CHUNK_SIZE,
     overlap=CHUNK_OVERLAP
 ):
     """
-    Split text into overlapping chunks.
+    Split text into overlapping chunks, breaking only at
+    sentence boundaries so each chunk reads as a clean,
+    self-contained passage instead of being cut mid-sentence.
     """
 
     text = " ".join(
         text.split()
     )
 
+    sentences = _split_into_sentences(text)
+
     chunks = []
 
-    start = 0
+    current_sentences = []
+    current_length = 0
 
-    step = chunk_size - overlap
+    for sentence in sentences:
 
-    while start < len(text):
+        sentence_length = len(sentence) + 1
 
-        end = start + chunk_size
-
-        chunk = text[
-            start:end
-        ].strip()
-
-        if chunk:
+        if current_sentences and (
+            current_length + sentence_length > chunk_size
+        ):
 
             chunks.append(
-                chunk
+                " ".join(current_sentences).strip()
             )
 
-        start += step
+            # Carry the last sentence forward as overlap so
+            # context isn't lost at chunk boundaries.
+            overlap_sentences = []
+            overlap_length = 0
+
+            for prev_sentence in reversed(current_sentences):
+
+                overlap_length += len(prev_sentence) + 1
+
+                overlap_sentences.insert(0, prev_sentence)
+
+                if overlap_length >= overlap:
+                    break
+
+            current_sentences = overlap_sentences
+            current_length = sum(
+                len(s) + 1 for s in current_sentences
+            )
+
+        current_sentences.append(sentence)
+        current_length += sentence_length
+
+    if current_sentences:
+
+        chunks.append(
+            " ".join(current_sentences).strip()
+        )
 
     return chunks
 

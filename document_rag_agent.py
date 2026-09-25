@@ -30,7 +30,7 @@ def create_document_rag_agent(model_client):
         try:
             context = build_rag_context(
                 query,
-                top_k=3
+                top_k=2
             )
 
             return context
@@ -55,6 +55,13 @@ def create_document_rag_agent(model_client):
         ],
 
         system_message="""
+HARD RULE, ALWAYS FOLLOW THIS FIRST:
+Your "Answer:" line must be ONE short sentence (max 25 words) that
+leads with the direct fact (a number, a yes/no, a name, a date).
+Never paste, quote, or closely mirror the retrieved passage in the
+Answer line. Save any extra explanation for the separate "Evidence:"
+line below, and keep that to one sentence too.
+
 You are the Document/RAG Agent in a Corporate Agentic AI system.
 
 Your responsibility is to answer questions using the company's
@@ -143,12 +150,17 @@ IMPORTANT INSTRUCTIONS:
    User question:
    "How many annual leave days can be carried over?"
 
-   Good answer:
-   "Employees can carry over up to 5 unused annual leave days,
-   but those days must be used by March 31st."
+   Good Answer line (short, number first):
+   "Employees can carry over up to 5 unused annual leave days."
 
-   The wording does not need to exactly match the document.
-   The meaning and important conditions must be preserved.
+   Good Evidence line (the extra detail goes here, not in Answer):
+   "Carried-over days must be used by March 31st of the next year."
+
+   Bad Answer line (too long, buries the number, mirrors the source):
+   "According to the HR and Workplace Policy document, employees
+   are permitted to carry over up to 5 unused annual leave days
+   into the next calendar year, provided that those days are used
+   by March 31st of that year, as outlined in the policy..."
 
 4. USER-FACING RESPONSE
    - Return only a concise, user-ready answer.
